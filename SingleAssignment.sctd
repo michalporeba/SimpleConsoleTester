@@ -18,5 +18,5 @@ f 12 square is     # verbose output
 e exception
 f exception
 
-e hang
-m hanging 
+e 4
+m 16

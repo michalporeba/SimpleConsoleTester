@@ -8,6 +8,7 @@ import java.lang.ProcessBuilder.Redirect;
 import java.io.OutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.PrintStream;
 import java.util.Scanner;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -35,7 +36,7 @@ public class Test
     static ArrayList<String> _baseExecutionArguments = new ArrayList<String>();
     static Process _testProcess = null;
     static BufferedReader _outputReader = null;
-    static BufferedWriter _inputWriter = null;
+    static PrintStream _inputWriter = null;
 
     static int _passedTests = 0;
     static int _failedTests = 0;
@@ -43,6 +44,7 @@ public class Test
     static int _failedAssertions = 0;
     static boolean _currentTestOutput = true;
 
+    static IOThreadHandler _outputHandler = null;
     public static void main(String[] args) throws IOException, InterruptedException
     {
         
@@ -85,6 +87,8 @@ public class Test
             }
         }
 
+        finishExecution();
+
         System.out.println();
         System.out.printf("Tests       Failed: %5d, Passed: %5d%n", _failedTests, _passedTests);
         System.out.printf("Assertions  Failed: %5d, Passed: %5d%n", _failedAssertions, _passedAssertions);
@@ -123,14 +127,6 @@ public class Test
         }
 
         _baseExecutionArguments.add(_classUnderTest);
-
-        // System.out.print("New execution arguments:");
-        // for(String s : _baseExecutionArguments)
-        // {
-        //     System.out.print(" " + s);
-        // }
-        // System.out.println();
-        // System.out.println();
     }
 
     private static void finishExecution() throws IOException, InterruptedException
@@ -199,10 +195,10 @@ public class Test
         InputStream input = _testProcess.getInputStream();
         _outputReader = new BufferedReader(new InputStreamReader(input));
         OutputStream output = _testProcess.getOutputStream();
-        _inputWriter = new BufferedWriter(new OutputStreamWriter(output));
+        _inputWriter = new PrintStream(output);
     }
 
-    private static void checkOutput(String arguments, boolean strong) throws IOException
+    private static void checkOutput(String arguments, boolean strong) throws IOException, InterruptedException
     {
         String expected = "";
         String test = "";
@@ -278,16 +274,15 @@ public class Test
         return value.substring(0, maxLength-3)+"...";
     }
 
-    private static void typeIn(String argument) throws IOException
+    private static void typeIn(String argument) throws IOException, InterruptedException
     {
-        System.out.println("READY TO TYPE IN");
         readOutput();
 
-        _inputWriter.write(argument + "\n");
+        _inputWriter.println(argument + System.lineSeparator());
         _inputWriter.flush();
     }
 
-    private static void readOutput() throws IOException
+    private static void readOutput() throws IOException, InterruptedException
     {
         String line = null;
         boolean newoutput = false;
@@ -302,6 +297,34 @@ public class Test
         if (newoutput) 
         {
             System.out.println();
+        }
+    }
+
+    private static class IOThreadHandler extends Thread {
+        private InputStream inputStream;
+        private StringBuilder output = new StringBuilder();
+ 
+        IOThreadHandler(InputStream inputStream) {
+            this.inputStream = inputStream;
+        }
+ 
+        public void run() {
+            Scanner br = null;
+            try {
+                br = new Scanner(new InputStreamReader(inputStream));
+                String line = null;
+                while (br.hasNextLine()) {
+                    line = br.nextLine();
+                    output.append(line
+                            + System.getProperty("line.separator"));
+                }
+            } finally {
+                br.close();
+            }
+        }
+ 
+        public StringBuilder getOutput() {
+            return output;
         }
     }
 }
