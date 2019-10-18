@@ -1,6 +1,7 @@
-!
+! java
+
 e
-m No Arguments     # no arguments were passed
+f No Arguments     # no arguments were passed
 
 e 2
 m 4
@@ -11,5 +12,11 @@ m 9
 e ask
 m give me a number # prompt
 t 12
-m 144              # correct square
-m 12 square is     # verbose output
+f 144              # correct square
+f 12 square is     # verbose output
+
+e exception
+f exception
+
+e hang
+m hanging 

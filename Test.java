@@ -8,6 +8,8 @@ import java.io.OutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Scanner;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import java.util.ArrayList;
 
 public class Test 
@@ -15,10 +17,15 @@ public class Test
     static final String COMMAND_SET_EXECUTION       = "!";
     static final String COMMAND_EXECUTE             = "e";
     static final String COMMAND_MATCH               = "m";
+    static final String COMMAND_FIND                = "f";
     static final String COMMAND_TYPE                = "t";
     static final String COMMAND_BECAUSE             = "b";
     static final String MATCH_SEPARATOR             = "#";
     static final String EXECUTION_ARGUMENTS_PATTERN = "\\s(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
+    static final String TEST_OUTPUT_PREFIX          = ">> ";
+
+    static final int MAX_NAME_LENGTH    = 20;
+    static final int MAX_MATCH_LENGTH   = 30;
 
     static final ArrayList<String> _output = new ArrayList<String>();
 
@@ -30,6 +37,9 @@ public class Test
 
     static int _passedTests = 0;
     static int _failedTests = 0;
+    static int _passedAssertions = 0;
+    static int _failedAssertions = 0;
+    static boolean _currentTestOutput = true;
 
     public static void main(String[] args) throws IOException, InterruptedException
     {
@@ -42,8 +52,6 @@ public class Test
         System.out.println();
 
         Scanner definitions = getTestDefinitions(testDefinitionsPath);
-
-        
 
         String command = "";
         String argument = "";
@@ -60,9 +68,12 @@ public class Test
                     break;
                 case COMMAND_EXECUTE:
                     startExecution(argument);
+                    break;
+                case COMMAND_FIND: 
+                    checkOutput(argument, false);
                     break; 
                 case COMMAND_MATCH: 
-                    checkIfOutputMatches(argument);
+                    checkOutput(argument, true);
                     break;
                 default:
                     break;
@@ -70,7 +81,8 @@ public class Test
         }
 
         System.out.println();
-        System.out.printf("Tests executed: %d, Failed: %d, Passed: %d", _failedTests+_passedTests, _failedTests, _passedTests);
+        System.out.printf("Tests       Failed: %5d, Passed: %5d%n", _failedTests, _passedTests);
+        System.out.printf("Assertions  Failed: %5d, Passed: %5d%n", _failedAssertions, _passedAssertions);
         System.out.println();
     }
 
@@ -107,17 +119,28 @@ public class Test
 
         _baseExecutionArguments.add(_classUnderTest);
 
-        System.out.print("New execution arguments:");
-        for(String s : _baseExecutionArguments)
-        {
-            System.out.print(" " + s);
-        }
-        System.out.println();
-        System.out.println();
+        // System.out.print("New execution arguments:");
+        // for(String s : _baseExecutionArguments)
+        // {
+        //     System.out.print(" " + s);
+        // }
+        // System.out.println();
+        // System.out.println();
     }
 
     private static void finishExecution() throws IOException, InterruptedException
     {
+        if (_currentTestOutput && _testProcess != null && _testProcess.exitValue() == 0) 
+        {
+            _passedTests++;
+            System.out.println("TEST PASSED");
+        }
+        else 
+        {
+            _failedTests++;
+            System.out.println("TEST FAILED");
+        }
+
         _output.clear();
 
         if (_inputWriter != null)
@@ -144,9 +167,11 @@ public class Test
 
     private static void startExecution(String arguments) throws IOException, InterruptedException
     {
+        
         if (_testProcess != null) 
         {
             finishExecution();
+            _currentTestOutput = true;
         }
 
         ArrayList<String> executionArguments = new ArrayList<String>(_baseExecutionArguments);
@@ -155,7 +180,7 @@ public class Test
             executionArguments.add(s);
         }
 
-        System.out.print("Executing");
+        System.out.print("TESTING:");
         for(String s : executionArguments)
         {
             System.out.print(" " + s);
@@ -171,7 +196,7 @@ public class Test
         _outputReader = new BufferedReader(new InputStreamReader(input));
     }
 
-    public static void checkIfOutputMatches(String arguments) throws IOException
+    private static void checkOutput(String arguments, boolean strong) throws IOException
     {
         String expected = "";
         String test = "";
@@ -187,6 +212,7 @@ public class Test
             test = split[1].trim();
         } 
 
+
         String line = null;
         boolean newoutput = false;
 
@@ -194,7 +220,7 @@ public class Test
         {
             newoutput = true;
             _output.add(line);
-            System.out.println(">> " + line);
+            System.out.println(TEST_OUTPUT_PREFIX + line);
         }
 
         if (newoutput) 
@@ -203,12 +229,20 @@ public class Test
         }
 
         boolean found = false; 
+        String matchingLine = "";
+
+        Pattern pattern = Pattern.compile(expected);
+        Matcher matcher = null;
 
         for(String l : _output)
         {
-            if (l.matches(expected))
+            matcher = pattern.matcher(l);
+
+            if ((strong && matcher.matches()) || (!strong && matcher.find()))
             {
                 found = true;
+                matchingLine = l;
+                break;
             }
         }
 
@@ -216,27 +250,39 @@ public class Test
 
         if (found) 
         {
-            _passedTests++;
+            _passedAssertions++;
             outcome = " OK   ";
         }
-        else {
-            _failedTests++;
+        else 
+        {
+            _failedAssertions++;
             outcome = "Failed";
+            _currentTestOutput = false;
         }
 
-        System.out.printf("[%s] %-20s", outcome, test);
+        System.out.printf("[%s] %-"+(2+MAX_NAME_LENGTH)+"s", outcome, limit(test, MAX_NAME_LENGTH));
         if (!found) 
         {
-            if (expected.length() <= 20)
-            {
-                System.out.printf("Expected: %s", expected);
-            }
-            else 
-            {
-                System.out.printf("\n  Expected: %s", expected);
-            }
+            System.out.println("Expected: " + limit(expected, MAX_MATCH_LENGTH));
+        }
+        else 
+        {
+            System.out.println("Found in: " + limit(matchingLine, MAX_MATCH_LENGTH));
+        }
+    }
+
+    private static String limit(String value, int maxLength)
+    {
+        if (value == null) 
+        {
+            return null;
         }
 
-        System.out.println();
+        if (value.length() <= maxLength)
+        {
+            return value;
+        }
+        
+        return value.substring(0, maxLength-3)+"...";
     }
 }
