@@ -1,0 +1,15 @@
+!
+e
+m No Arguments     # no arguments were passed
+
+e 2
+m 4
+
+e 3
+m 9
+
+e ask
+m give me a number # prompt
+t 12
+m 144              # correct square
+m 12 square is     # verbose output
