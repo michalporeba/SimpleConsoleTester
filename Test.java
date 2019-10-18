@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.lang.ProcessBuilder.Redirect;
 import java.io.OutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -23,6 +24,7 @@ public class Test
     static final String MATCH_SEPARATOR             = "#";
     static final String EXECUTION_ARGUMENTS_PATTERN = "\\s(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)";
     static final String TEST_OUTPUT_PREFIX          = ">> ";
+    static final String TEST_INPUT_PREFIX           = "<< ";
 
     static final int MAX_NAME_LENGTH    = 20;
     static final int MAX_MATCH_LENGTH   = 30;
@@ -74,6 +76,9 @@ public class Test
                     break; 
                 case COMMAND_MATCH: 
                     checkOutput(argument, true);
+                    break;
+                case COMMAND_TYPE:
+                    typeIn(argument);
                     break;
                 default:
                     break;
@@ -191,9 +196,10 @@ public class Test
         processBuilder.redirectErrorStream(true);
         _testProcess = processBuilder.start();
 
-        OutputStream output = _testProcess.getOutputStream();
         InputStream input = _testProcess.getInputStream();
         _outputReader = new BufferedReader(new InputStreamReader(input));
+        OutputStream output = _testProcess.getOutputStream();
+        _inputWriter = new BufferedWriter(new OutputStreamWriter(output));
     }
 
     private static void checkOutput(String arguments, boolean strong) throws IOException
@@ -212,21 +218,7 @@ public class Test
             test = split[1].trim();
         } 
 
-
-        String line = null;
-        boolean newoutput = false;
-
-        while((line = _outputReader.readLine()) != null) 
-        {
-            newoutput = true;
-            _output.add(line);
-            System.out.println(TEST_OUTPUT_PREFIX + line);
-        }
-
-        if (newoutput) 
-        {
-            System.out.println();
-        }
+        readOutput();
 
         boolean found = false; 
         String matchingLine = "";
@@ -284,5 +276,32 @@ public class Test
         }
         
         return value.substring(0, maxLength-3)+"...";
+    }
+
+    private static void typeIn(String argument) throws IOException
+    {
+        System.out.println("READY TO TYPE IN");
+        readOutput();
+
+        _inputWriter.write(argument + "\n");
+        _inputWriter.flush();
+    }
+
+    private static void readOutput() throws IOException
+    {
+        String line = null;
+        boolean newoutput = false;
+
+        while((line = _outputReader.readLine()) != null) 
+        {
+            newoutput = true;
+            _output.add(line);
+            System.out.println(TEST_OUTPUT_PREFIX + line);
+        }
+
+        if (newoutput) 
+        {
+            System.out.println();
+        }
     }
 }

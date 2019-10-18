@@ -10,7 +10,7 @@ e 3
 m 9
 
 e ask
-m give me a number # prompt
+f give me a number # prompt
 t 12
 f 144              # correct square
 f 12 square is     # verbose output

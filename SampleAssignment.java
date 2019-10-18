@@ -1,3 +1,5 @@
+import java.util.Scanner;
+
 public class SampleAssignment
 {
     public static void main(String[] args) throws Exception
@@ -8,7 +10,11 @@ public class SampleAssignment
         }
         else if (args[0].equalsIgnoreCase("ask"))
         {
-
+            // System.out.print("give me a number: ");
+            // Scanner in = new Scanner(System.in);
+            // //int value = in.nextInt();
+            // int value = 0;
+            // System.out.printf("%d square is %d", value, value * value);
         } 
         else if (args.length > 0)
         {
